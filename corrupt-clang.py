@@ -102,7 +102,7 @@ def parse_args(arguments):
       remaining_args: unparsed arguments that are to be passed on to the
         compiler
     '''
-    print('parsing: {}'.format(arguments))
+    #print('parsing: {}'.format(arguments))
     remaining = list(arguments)
     # Create an empty namespace.  We will populate ourselves
     parsed = ArgumentParser().parse_args(args=[])
@@ -228,8 +228,8 @@ def choose_injection(function_tuples):
 def main(arguments):
     'Main logic here'
     parsed, remaining = parse_args(arguments)
-    print('parsed = {}'.format(parsed))
-    print('remaining = {}'.format(remaining))
+    #print('parsed = {}'.format(parsed))
+    #print('remaining = {}'.format(remaining))
 
     env = os.environ.copy()
     if parsed.mode == 'capture':
