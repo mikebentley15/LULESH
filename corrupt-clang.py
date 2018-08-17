@@ -216,7 +216,9 @@ def choose_injection(function_tuples):
     total_instructions = sum(x.instr_count for x in function_tuples)
     choice_num = random.randint(1, total_instructions)
     op = random.choice(('ADD', 'SUB', 'DIV', 'MUL'))
-    val = random.random() * 1e-4
+    val = random.random()
+    if op in ('ADD', 'SUB'):
+        val *= 1e-4
     for function in function_tuples:
         if choice_num <= function.instr_count:
             return InjectionChoiceTuple(function.file, function.function,
