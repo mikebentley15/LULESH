@@ -240,7 +240,7 @@ def main(arguments):
         env['INJECTOR_ON'] = '1'
         env['INJECTOR_MODULE'] = parsed.file
         env['INJECTOR_FUNCTION'] = parsed.function
-        env['INJECTOR_INSTRUCTION'] = str(parsed.instruction)
+        env['INJECTOR_INSTRUCTION_ID'] = str(parsed.instruction)
         env['INJECTOR_VALUE'] = str(parsed.value)
         env['INJECTOR_OP'] = parsed.op
 
