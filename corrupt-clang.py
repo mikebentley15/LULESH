@@ -189,7 +189,7 @@ def parse_captured(prof_files):
                 if not line.startswith('\t'):
                     if function is not None:
                         funcs.append(FunctionTuple(fname, function, count))
-                    function = line[:-1]
+                    function = line[:-2]
                     count = 0
                 else:
                     count += 1
