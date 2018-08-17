@@ -186,7 +186,7 @@ def parse_captured(prof_files):
             function = None
             count = None
             for line in fin:
-                if not line.startswith(' '):
+                if not line.startswith('\t'):
                     if function is not None:
                         funcs.append(FunctionTuple(fname, function, count))
                     function = line[:-1]
