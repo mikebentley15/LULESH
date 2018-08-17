@@ -1,20 +1,28 @@
 #!/usr/bin/env python3
+'''
+Wraps around the fpinjector version of clang++ to make the injecting and random
+choosing of injection easy.  Use this script as your compiler with the extra
+options, as can be seen from passing --help to this script.
+'''
 
 from argparse import ArgumentParser
+from collections import namedtuple
 import os
+import random
 import subprocess as subp
 import sys
-from collections import namedtuple
 
 
-CXX='/collab/usr/global/tools/pruners/blueos_3_ppc64le_ib/fpinjector-0.0.1/llvm-7.0-08152018/install/bin/clang++'
+CXX = '/collab/usr/global/tools/pruners/blueos_3_ppc64le_ib/fpinjector-0.0.1' \
+      '/llvm-7.0-08152018/install/bin/clang++'
 assert os.path.isfile(CXX)
 
-CXXFLAGS=[
+CXXFLAGS = [
     '-Xclang',
     '-load',
     '-Xclang',
-    '/collab/usr/global/tools/pruners/blueos_3_ppc64le_ib/fpinjector-0.0.1/lib/libinjector.so',
+    '/collab/usr/global/tools/pruners/blueos_3_ppc64le_ib/fpinjector-0.0.1'
+    '/lib/libinjector.so',
     ]
 assert os.path.isfile(CXXFLAGS[-1])
 
@@ -172,16 +180,30 @@ def parse_captured(prof_files):
     '''
     FunctionTuple = namedtuple('FunctionTuple', 'file, function, instr_count')
     funcs = []
-    # TODO: implement
+    for prof in prof_files:
+        fname = prof[:-len('.prof')]
+        with open(prof, 'r') as fin:
+            function = None
+            count = None
+            for line in fin:
+                if not line.startswith(' '):
+                    if function is not None:
+                        funcs.append(FunctionTuple(fname, function, count))
+                    function = line[:-1]
+                    count = 0
+                else:
+                    count += 1
+        if function is not None:
+            funcs.append(FunctionTuple(fname, function, count))
     return funcs
 
 def choose_injection(function_tuples):
     '''
     Chooses a site to inject and returns a ChoiceTuple object
-    
+
     @param function_tuples: a list of FunctionTuple objects from
         parse_captured()
-    
+
     @return an InjectionChoiceTuple object with the following attributes:
         - fname: filepath
         - func: function name
@@ -191,9 +213,17 @@ def choose_injection(function_tuples):
     '''
     InjectionChoiceTuple = namedtuple('InjectionChoiceTuple',
                                       'fname, func, instr, op, val')
-    choice = None
-    # TODO: implement
-    return choice
+    total_instructions = sum(x.instr_count for x in function_tuples)
+    choice_num = random.randint(1, total_instructions)
+    op = random.choice(('ADD', 'SUB', 'DIV', 'MUL'))
+    val = random.random() * 1e-4
+    for function in function_tuples:
+        if choice_num <= function.instr_count:
+            return InjectionChoiceTuple(function.file, function.function,
+                                        choice_num, op, val)
+        else:
+            choice_num -= function.instr_count
+    return None
 
 def main(arguments):
     'Main logic here'
@@ -211,7 +241,7 @@ def main(arguments):
         env['INJECTOR_INSTRUCTION'] = str(parsed.instruction)
         env['INJECTOR_VALUE'] = str(parsed.value)
         env['INJECTOR_OP'] = parsed.op
-    
+
     if parsed.mode in ('capture', 'corrupt'):
         subp.check_call([CXX] + CXXFLAGS + remaining, env=env)
     elif parsed.mode == 'choose':
@@ -223,4 +253,3 @@ def main(arguments):
 
 if __name__ == '__main__':
     main(sys.argv[1:])
-
