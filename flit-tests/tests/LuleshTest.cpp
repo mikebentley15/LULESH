@@ -1,5 +1,5 @@
 #define main main_old
-#include "../laghos.cc"
+#include "lulesh.cc"
 #undef main
 
 #include <flit.h>
@@ -11,17 +11,17 @@ namespace {
 struct FileCloser {
   FILE* file;
   int fd;
-  TmpFile(FILE* _file) file(_file) {
+  FileCloser(FILE* _file) : file(_file) {
     if (file == nullptr) {
       throw std::ios_base::failure("Could not open temporary file");
     }
-    fd = fileno(tmp);
+    fd = fileno(file);
     if (fd < 0) {
       throw std::ios_base::failure("Could not get file descriptor of"
                                    " the temporary file");
     }
   }
-  ~TmpFile() {
+  ~FileCloser() {
     fclose(file);
   }
 };
@@ -32,7 +32,7 @@ struct FdReplace {
   int old_fd_copy;
   FILE* old_file;
   FILE* replace_file;
-  FdReplace (FILE* old_file, FILE* replace_file)
+  FdReplace (FILE* _old_file, FILE* _replace_file)
     : old_file(_old_file)
     , replace_file(_replace_file)
   {
@@ -61,11 +61,21 @@ std::string read_file(FILE* file) {
   auto size = ftell(file);
   rewind(file);
   std::string contents(size + 1, '\0');
-  auto read_size = fread(contents.data(), size, 1, file);
+  char* data = const_cast<char*>(contents.data());
+  long read_size = fread(data, 1, size, file);
   if (read_size != size) {
-    throw std::ios_base::failure("Did not read in one go");
+    throw std::ios_base::failure(
+        "Did not read in one go (" + std::to_string(size) + ", "
+        + std::to_string(read_size) + ")");
   }
   return contents;
+}
+
+double get_val(const std::string contents, const std::string label) {
+  auto label_pos = contents.find(label);
+  auto number_pos = contents.find_first_of("0123456789", label_pos);
+  auto end_pos = contents.find_first_of("\n \t\r", number_pos);
+  return std::stod(contents.substr(number_pos, end_pos - number_pos));
 }
 } // end of unnamed namespace
 
@@ -76,36 +86,61 @@ public:
   virtual size_t getInputsPerRun() override { return 0; }
   virtual std::vector<T> getDefaultInput() override { return { }; }
 
-  virtual long double compare(long double ground_truth,
-                              long double test_results) const override {
-    // absolute error
-    return test_results - ground_truth;
-  }
-
   virtual long double compare(const std::string &ground_truth,
-                              const std::string &test_results) const override {
-    FLIT_UNUSED(ground_truth);
-    FLIT_UNUSED(test_results);
-    return 0.0;
+                              const std::string &test_results) const override
+  {
+    auto gt_max_abs_diff   = get_val(ground_truth, "MaxAbsDiff");
+    auto gt_total_abs_diff = get_val(ground_truth, "TotalAbsDiff");
+    auto gt_max_rel_diff   = get_val(ground_truth, "MaxRelDiff");
+    auto tr_max_abs_diff   = get_val(test_results, "MaxAbsDiff");
+    auto tr_total_abs_diff = get_val(test_results, "TotalAbsDiff");
+    auto tr_max_rel_diff   = get_val(test_results, "MaxRelDiff");
+
+    return std::abs(gt_max_abs_diff - tr_max_abs_diff)
+         + std::abs(gt_total_abs_diff - tr_total_abs_diff)
+         + std::abs(gt_max_rel_diff - tr_max_rel_diff);
   }
 
 protected:
   virtual flit::Variant run_impl(const std::vector<T> &ti) override {
     FLIT_UNUSED(ti);
-    const char** argv = {"laghos2.0", "-i", "10"};
-    const int argc = 3;
-    
-    FileCloser temporary_file(tmpfile());
-    FdReplace replacer(stdout, temporary_file.file);
-    FLIT_UNUSED(replacer);
-
-    main_old(argc, argv);
-
-    return read_file(temporary_file.file);
+    return flit::Variant();
   }
 
 protected:
   using flit::TestBase<T>::id;
 };
+
+template <>
+flit::Variant LuleshTest<double>::run_impl(const std::vector<double> &ti) {
+    FLIT_UNUSED(ti);
+    const int argc = 3;
+    char arg1[] = "laghos2.0";
+    char arg2[] = "-i";
+    char arg3[] = "10";
+    char* argv[] = {arg1, arg2, arg3};
+
+    FileCloser temporary_file(tmpfile());
+    {
+      FdReplace replacer(stdout, temporary_file.file);
+      FLIT_UNUSED(replacer);
+
+      main_old(argc, argv);
+    }
+    std::string contents = read_file(temporary_file.file);
+
+    auto max_abs_diff = get_val(contents, "MaxAbsDiff");
+    auto total_abs_diff = get_val(contents, "TotalAbsDiff");
+    auto max_rel_diff = get_val(contents, "MaxRelDiff");
+
+    flit::info_stream << id << ": ("
+      << max_abs_diff
+      << total_abs_diff
+      << max_rel_diff
+      << std::endl;
+    std::cout << contents;
+    
+    return contents;
+  }
 
 REGISTER_TYPE(LuleshTest)

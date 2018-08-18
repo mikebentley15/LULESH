@@ -10,7 +10,10 @@ SOURCE         +=
 #   CC_REQUIRED += -I<path>
 # or defines
 #   CC_REQUIRED += -DDEBUG_ENABLED=1
-CC_REQUIRED    +=
+CC_REQUIRED    += -I..
+CC_REQUIRED    += -DUSE_MPI=0
+CC_REQUIRED    += -Wno-unknown-pragmas
+CC_REQUIRED    += -Wno-unused-parameter
 
 # required linker flags
 # for example, link libraries
