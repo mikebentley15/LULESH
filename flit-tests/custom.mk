@@ -20,7 +20,7 @@ CC_REQUIRED    += -Wno-unused-parameter
 #   LD_REQUIRED += -L<library-path> -l<library-name>
 # or rpath
 #   LD_REQUIRED += -Wl,-rpath=<abs-path-to-library-dir>
-LD_REQUIRED    +=
+LD_REQUIRED    += -lm
 
 # compiler and linker flags respectively - specifically for a dev build
 # - DEV_CFLAGS:   non-recorded compiler flags (such as includes)
