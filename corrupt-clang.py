@@ -79,6 +79,12 @@ def print_usage(progname=sys.argv[0]):
         '                       - op: operation to inject, one of\n'
         '                         ("ADD", "SUB", "MUL", "DIV")\n'
         '\n'
+        '  --no-corrupt         Do not do any corruptions and pass through\n'
+        '                       all remaining command-line arguments to\n'
+        '                       the basic clang compiler.\n'
+        '\n'
+        '  --dummy              An ignored command-line argument\n'
+        '\n'
         )
 
 def parse_args(arguments):
@@ -114,7 +120,7 @@ def parse_args(arguments):
     parsed.value = None
     parsed.op = None
 
-    valid_modes = ('capture', 'choose', 'corrupt')
+    valid_modes = ('capture', 'choose', 'corrupt', 'nothing')
     valid_ops = ('ADD', 'SUB', 'MUL', 'DIV')
 
     while len(remaining) > 0:
@@ -122,6 +128,8 @@ def parse_args(arguments):
         if arg == '-h' or arg == '--help':
             print_usage()
             sys.exit(0)
+        elif arg == '--dummy':
+            pass  # do nothing
         elif arg == '--capture-choices':
             parsed.mode = 'capture'
         elif arg == '--choose-corruption':
@@ -136,6 +144,8 @@ def parse_args(arguments):
             parsed.instruction = int(corrupt_split[2])
             parsed.value = float(corrupt_split[3])
             parsed.op = corrupt_split[4]
+        elif arg == '--no-corrupt':
+            parsed.mode = 'nothing'
         elif arg == '--':
             # means stop parsing
             break
@@ -234,8 +244,10 @@ def main(arguments):
     #print('remaining = {}'.format(remaining))
 
     env = os.environ.copy()
+    clang_arguments = remaining
     if parsed.mode == 'capture':
         env['INJECTOR_PROFILE'] = '1'
+        clang_arguments.extend(CXXFLAGS)
     elif parsed.mode == 'corrupt':
         env['INJECTOR_ON'] = '1'
         env['INJECTOR_MODULE'] = parsed.file
@@ -243,9 +255,10 @@ def main(arguments):
         env['INJECTOR_INSTRUCTION_ID'] = str(parsed.instruction)
         env['INJECTOR_VALUE'] = str(parsed.value)
         env['INJECTOR_OP'] = parsed.op
+        clang_arguments.extend(CXXFLAGS)
 
-    if parsed.mode in ('capture', 'corrupt'):
-        subp.check_call([CXX] + CXXFLAGS + remaining, env=env)
+    if parsed.mode in ('capture', 'corrupt', 'nothing'):
+        subp.check_call([CXX] + clang_arguments, env=env)
     elif parsed.mode == 'choose':
         functions = parse_captured(x + '.prof' for x in parsed.files)
         chosen = choose_injection(functions)
