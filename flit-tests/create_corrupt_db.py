@@ -47,11 +47,47 @@ def main(arguments):
         choices.append(
             '{x.fname},{x.func},{x.instr},{x.val},{x.op}'.format(x=choice))
 
-    with open(args.output, 'rb') as fout:
+    # create the CSV file containing the results to use
+    with tempfile.NamedTemporaryFile(suffix='.csv') as fout:
+        writer = csv.writer(fout)
+        # header row
+        writer.writerow([
+            'name',
+            'host',
+            'compiler',
+            'optl',
+            'switches',
+            'precision',
+            'score_hex',
+            'score',
+            'resultfile',
+            'comparison_hex',
+            'comparison',
+            'file',
+            'nanosec',
+            ])
+        for i, choice in enumerate(choices):
+            writer.writerow([
+                'Lulesh_corruption_{}'.format(i), # 'name',
+                'ray',                            # 'host',
+                './corrupt_clang.py',             # 'compiler',
+                '-O2',                            # 'optl',
+                '--corrupt={}'.format(choice),    # 'switches',
+                'd',                              # 'precision',
+                '0x3ffbccccccccccccd000',         # 'score_hex',
+                '0.1000000000000000055511151231257827021181583404541015625',
+                                                  # 'score',
+                'NULL',                           # 'resultfile',
+                '0x3ffbccccccccccccd000',         # 'comparison_hex',
+                '0.1000000000000000055511151231257827021181583404541015625',
+                                                  # 'comparison',
+                'executable_name',                # 'file',
+                '0',                              # 'nanosec',
+                ])
 
-    args.procfiles
-    args.number
-    args.output
+        subp.check_call(['flit', 'import',
+                         '--dbfile', args.output,
+                         fout.name])
 
 if __name__ == '__main__':
     main(sys.argv[1:])
