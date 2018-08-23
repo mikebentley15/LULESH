@@ -9,16 +9,17 @@ timing = false
 name = 'ray'
 
 [hosts.dev_build]
-compiler_name = 'g++'
+compiler_name = 'corrupt_clang'
 optimization_level = '-O2'
 switches = '-funsafe-math-optimizations'
 
 [hosts.ground_truth]
-compiler_name = 'g++'
+compiler_name = 'corrupt_clang'
 optimization_level = '-O2'
 switches = ''
 
   [[hosts.compilers]]
-  binary = 'g++'
-  name = 'g++'
+  binary = './corrupt_clang.py'
+  name = 'corrupt_clang'
+  type = 'clang'
 
