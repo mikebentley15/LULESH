@@ -2,10 +2,13 @@
 
 import corrupt_clang
 
-import sys
-import os
 from argparse import ArgumentParser
+import csv
+import os
 import random
+import subprocess as subp
+import sys
+import tempfile
 
 def parse_args(arguments):
     'Parse arguments and returned the parsed product'
@@ -43,12 +46,12 @@ def main(arguments):
     functions = corrupt_clang.parse_captured(args.procfiles)
     choices = []
     for _ in range(args.number):
-        choice = choose_injection(functions)
+        choice = corrupt_clang.choose_injection(functions)
         choices.append(
             '{x.fname},{x.func},{x.instr},{x.val},{x.op}'.format(x=choice))
 
     # create the CSV file containing the results to use
-    with tempfile.NamedTemporaryFile(suffix='.csv') as fout:
+    with tempfile.NamedTemporaryFile(suffix='.csv', mode='w') as fout:
         writer = csv.writer(fout)
         # header row
         writer.writerow([
