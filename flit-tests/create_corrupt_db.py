@@ -48,10 +48,10 @@ def main(arguments):
     corrupt_clang.random.seed(args.seed)
     
     functions = corrupt_clang.parse_captured(args.procfiles)
-    choices = []
-    for _ in range(args.number):
+    choices = set()
+    while len(choices) < args.number:
         choice = corrupt_clang.choose_injection(functions)
-        choices.append(
+        choices.add(
             '{x.fname},{x.func},{x.instr},{x.val},{x.op}'.format(x=choice))
 
     # create the CSV file containing the results to use
@@ -73,7 +73,7 @@ def main(arguments):
             'file',
             'nanosec',
             ])
-        for i, choice in enumerate(choices):
+        for i, choice in enumerate(sorted(choices)):
             writer.writerow([
                 args.test,                        # 'name',
                 'ray',                            # 'host',
