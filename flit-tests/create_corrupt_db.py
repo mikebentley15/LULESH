@@ -35,6 +35,10 @@ def parse_args(arguments):
                             The seed for the random number generator.  The
                             default is 42.
                             ''')
+    parser.add_argument('-t', '--test', required=True,
+                        help='''
+                            The test case name to attribute the corruption.
+                            ''')
     return parser.parse_args(arguments)
 
 def main(arguments):
@@ -71,7 +75,7 @@ def main(arguments):
             ])
         for i, choice in enumerate(choices):
             writer.writerow([
-                'Lulesh_corruption_{}'.format(i), # 'name',
+                args.test,                        # 'name',
                 'ray',                            # 'host',
                 './corrupt_clang.py',             # 'compiler',
                 '-O2',                            # 'optl',
