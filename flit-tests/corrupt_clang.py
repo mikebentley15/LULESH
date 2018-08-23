@@ -81,9 +81,15 @@ def print_usage(progname=sys.argv[0]):
         '\n'
         '  --no-corrupt         Do not do any corruptions and pass through\n'
         '                       all remaining command-line arguments to\n'
-        '                       the basic clang compiler.\n'
+        '                       the basic clang compiler.  This is the\n'
+        '                       default\n'
         '\n'
         '  --dummy              An ignored command-line argument\n'
+        '\n'
+        '  -O<anything>         Optimization flag to pass to clang (optional)\n'
+        '                       Do not use with --choose-corruption\n'
+        '                       Useful for when using with FLiT to specify\n'
+        '                       the optimization level\n'
         '\n'
         )
 
@@ -112,7 +118,7 @@ def parse_args(arguments):
     remaining = list(arguments)
     # Create an empty namespace.  We will populate ourselves
     parsed = ArgumentParser().parse_args(args=[])
-    parsed.mode = None
+    parsed.mode = 'nothing'
     parsed.files = None
     parsed.file = None
     parsed.function = None
@@ -130,6 +136,8 @@ def parse_args(arguments):
             sys.exit(0)
         elif arg == '--dummy':
             pass  # do nothing
+        elif arg.startswith('-O'):
+            remaining.append(arg)
         elif arg == '--capture-choices':
             parsed.mode = 'capture'
         elif arg == '--choose-corruption':
