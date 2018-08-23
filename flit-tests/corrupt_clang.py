@@ -125,6 +125,7 @@ def parse_args(arguments):
     parsed.instruction = None
     parsed.value = None
     parsed.op = None
+    parsed.obj = None
 
     valid_modes = ('capture', 'choose', 'corrupt', 'nothing')
     valid_ops = ('ADD', 'SUB', 'MUL', 'DIV')
@@ -152,6 +153,9 @@ def parse_args(arguments):
             parsed.instruction = int(corrupt_split[2])
             parsed.value = float(corrupt_split[3])
             parsed.op = corrupt_split[4]
+            if '-c' in remaining:
+                parsed.obj = remaining[remaining.index('-o') + 1]
+
         elif arg == '--no-corrupt':
             parsed.mode = 'nothing'
         elif arg == '--':
@@ -245,6 +249,13 @@ def choose_injection(function_tuples):
             choice_num -= function.instr_count
     return None
 
+def get_gt_obj(srcpath):
+    'Get the object filename for the given source file'
+    objdir = 'obj'
+    srcname = os.path.basename(srcpath)
+    base = os.path.splitext(srcname)
+    return os.path.join(objdir, base + '_gt.o')
+
 def main(arguments):
     'Main logic here'
     parsed, remaining = parse_args(arguments)
@@ -257,13 +268,18 @@ def main(arguments):
         env['INJECTOR_PROFILE'] = '1'
         clang_arguments.extend(CXXFLAGS)
     elif parsed.mode == 'corrupt':
-        env['INJECTOR_ON'] = '1'
-        env['INJECTOR_MODULE'] = parsed.file
-        env['INJECTOR_FUNCTION'] = parsed.function
-        env['INJECTOR_INSTRUCTION_ID'] = str(parsed.instruction)
-        env['INJECTOR_VALUE'] = str(parsed.value)
-        env['INJECTOR_OP'] = parsed.op
-        clang_arguments.extend(CXXFLAGS)
+        if parsed.obj is not None and parsed.file in remaining:
+            env['INJECTOR_ON'] = '1'
+            env['INJECTOR_MODULE'] = parsed.file
+            env['INJECTOR_FUNCTION'] = parsed.function
+            env['INJECTOR_INSTRUCTION_ID'] = str(parsed.instruction)
+            env['INJECTOR_VALUE'] = str(parsed.value)
+            env['INJECTOR_OP'] = parsed.op
+            clang_arguments.extend(CXXFLAGS)
+        else:
+            parsed.mode = 'link'
+            parsed.linkto = os.path.basename(get_gt_obj(parsed.file))
+            parsed.link = parsed.obj
 
     if parsed.mode in ('capture', 'corrupt', 'nothing'):
         subp.check_call([CXX] + clang_arguments, env=env)
@@ -271,6 +287,14 @@ def main(arguments):
         functions = parse_captured(x + '.prof' for x in parsed.files)
         chosen = choose_injection(functions)
         print('{x.fname},{x.func},{x.instr},{x.val},{x.op}'.format(x=chosen))
+    elif parsed.mode == 'link':
+        print('Creating symbolic link instead of recompiling')
+        print('  {} -> {}'.format(parsed.link, parsed.linkto))
+        os.symlink(parsed.linkto, parsed.link)
+        dep_linkto = os.path.splitext(parsed.linkto)[0] + '.d'
+        dep_link = os.path.splitext(parsed.link)[0] + '.d'
+        print('  {} -> {}'.format(dep_link, dep_linkto))
+        os.symlink(dep_linkto, dep_link)
     else:
         raise RuntimeError('Unsupported mode: {}'.format(parsed.mode))
 
