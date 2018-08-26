@@ -249,12 +249,13 @@ def choose_injection(function_tuples):
             choice_num -= function.instr_count
     return None
 
-def get_gt_obj(srcpath):
+def get_gt_obj(objpath):
     'Get the object filename for the given source file'
     objdir = 'obj'
-    srcname = os.path.basename(srcpath)
-    base = os.path.splitext(srcname)
-    return os.path.join(objdir, base + '_gt.o')
+    objname = os.path.basename(objpath)
+    base = os.path.splitext(objname)[0]
+    gtname = base[:base.find('_bisect_')] + '_gt.o'
+    return os.path.join(objdir, gtname)
 
 def main(arguments):
     'Main logic here'
@@ -278,7 +279,7 @@ def main(arguments):
             clang_arguments.extend(CXXFLAGS)
         else:
             parsed.mode = 'link'
-            parsed.linkto = os.path.basename(get_gt_obj(parsed.file))
+            parsed.linkto = os.path.basename(get_gt_obj(parsed.obj))
             parsed.link = parsed.obj
 
     if parsed.mode in ('capture', 'corrupt', 'nothing'):
