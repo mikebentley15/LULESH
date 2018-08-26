@@ -79,7 +79,7 @@ def main(arguments):
                 'ray',                            # 'host',
                 './corrupt_clang.py',             # 'compiler',
                 '-O2',                            # 'optl',
-                '--corrupt={}'.format(choice),    # 'switches',
+                '--corrupt {}'.format(choice),    # 'switches',
                 'd',                              # 'precision',
                 '0x3ffbccccccccccccd000',         # 'score_hex',
                 '0.1000000000000000055511151231257827021181583404541015625',
