@@ -49,10 +49,14 @@ def main(arguments):
     
     functions = corrupt_clang.parse_captured(args.procfiles)
     choices = set()
+    choices_set = set()
+    choices = []
     while len(choices) < args.number:
         choice = corrupt_clang.choose_injection(functions)
-        choices.add(
-            '{x.fname},{x.func},{x.instr},{x.val},{x.op}'.format(x=choice))
+        if choice not in choices_set:
+            choices.append(
+                '{x.fname},{x.func},{x.instr},{x.val},{x.op}'.format(x=choice))
+            choices_set.add(choice)
 
     # create the CSV file containing the results to use
     with tempfile.NamedTemporaryFile(suffix='.csv', mode='w') as fout:
@@ -73,7 +77,7 @@ def main(arguments):
             'file',
             'nanosec',
             ])
-        for i, choice in enumerate(sorted(choices)):
+        for i, choice in enumerate(choices):
             writer.writerow([
                 args.test,                        # 'name',
                 'ray',                            # 'host',
@@ -91,6 +95,7 @@ def main(arguments):
                 'executable_name',                # 'file',
                 '0',                              # 'nanosec',
                 ])
+        fout.flush()
 
         subp.check_call(['flit', 'import',
                          '--dbfile', args.output,
