@@ -1,0 +1,17 @@
+obj/
+bisect-*/
+devrun
+gtrun
+ground-truth.csv*
+*.prof
+*.o
+U.d
+*.core
+__pycache__
+.*.swp
+.*.swo
+Makefile
+auto-bisect.csv
+devrun*.dat
+gtrun*.dat
+
