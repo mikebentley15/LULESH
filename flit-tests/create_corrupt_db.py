@@ -3,7 +3,9 @@
 import corrupt_clang
 
 from argparse import ArgumentParser
+from collections import namedtuple
 import csv
+import itertools
 import os
 import random
 import subprocess as subp
@@ -25,6 +27,21 @@ def parse_args(arguments):
                             Number of corruption choices to make.  The default
                             is to make 1000 of them.
                             ''')
+    parser.add_argument('-a', '--all', action='store_true',
+                        help='''
+                            Generate a corruption choice for all floating-point
+                            locations given by the procfiles.  This is
+                            tractable when the number of floating-point
+                            locations is not too large (such as 1000).  This is
+                            in opposition to the --number flag.
+                            ''')
+    parser.add_argument('--all-ops', action='store_true',
+                        help='''
+                            Generate four corruption choices for each file
+                            location, one for each of the four different types
+                            of operations (ADD, SUB, MUL, DIV).  This is only
+                            applicable with the --all flag.
+                            ''')
     parser.add_argument('-o', '--output', default='corruptions.sqlite',
                         help='''
                             The name of the sqlite file to use.  The default is
@@ -41,6 +58,43 @@ def parse_args(arguments):
                             ''')
     return parser.parse_args(arguments)
 
+def choose_injection(function_tuples, choice_num=None, op=None, val=None):
+    '''
+    Chooses a site to inject and returns a ChoiceTuple object
+
+    @param function_tuples: a list of FunctionTuple objects from
+        parse_captured()
+    @param choice_num: if given, specifies a static choice_num to use,
+        otherwise, will choose randomly between [1, total_choice_count]
+    @param op: if given, specifies a static op to use
+    @param val: if given, specifies a static val to use
+
+    @return an InjectionChoiceTuple object with the following attributes:
+        - fname: filepath
+        - func: function name
+        - instr: instruction number to corrupt in func
+        - op: operation to use, one of ('ADD', 'SUB', 'DIV', 'MUL')
+        - val: value to inject
+    '''
+    InjectionChoiceTuple = namedtuple('InjectionChoiceTuple',
+                                      'fname, func, instr, op, val')
+    total_instructions = sum(x.instr_count for x in function_tuples)
+    if choice_num is not None or choice_num <= 0 or choice_num > total_instructions:
+        choice_num = random.randint(1, total_instructions)
+    if op not in ('ADD', 'SUB', 'DIV', 'MUL'):
+        op = random.choice(('ADD', 'SUB', 'DIV', 'MUL'))
+    if val is None:
+        val = random.random()
+        if op in ('ADD', 'SUB'):
+            val *= 1e-4
+    for function in function_tuples:
+        if choice_num <= function.instr_count:
+            return InjectionChoiceTuple(function.file, function.function,
+                                        choice_num, op, val)
+        else:
+            choice_num -= function.instr_count
+    return None
+
 def main(arguments):
     'Main logic here'
     args = parse_args(arguments)
@@ -51,12 +105,25 @@ def main(arguments):
     choices = set()
     choices_set = set()
     choices = []
-    while len(choices) < args.number:
-        choice = corrupt_clang.choose_injection(functions)
-        if choice not in choices_set:
+    total_instructions = sum(x.instr_count for x in functions)
+
+    if args.all:
+        ops = [None]
+        if args.all_ops:
+            ops = ('ADD', 'SUB', 'MUL', 'DIV')
+        for i, op in itertools.product(range(total_instructions), ops):
+            choice = choose_injection(functions, choice_num=i+1, op=op)
             choices.append(
                 '{x.fname},{x.func},{x.instr},{x.val},{x.op}'.format(x=choice))
+            assert choice not in choices_set, choice
             choices_set.add(choice)
+    else:
+        while len(choices) < args.number:
+            choice = choose_injection(functions)
+            if choice not in choices_set:
+                choices.append(
+                    '{x.fname},{x.func},{x.instr},{x.val},{x.op}'.format(x=choice))
+                choices_set.add(choice)
 
     # create the CSV file containing the results to use
     with tempfile.NamedTemporaryFile(suffix='.csv', mode='w') as fout:
