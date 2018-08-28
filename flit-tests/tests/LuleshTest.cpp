@@ -1,39 +1,13 @@
+#include "lulesh-wrap.h"
+
+#include <flit.h>
+
 #include <cstdlib>
 #include <stdexcept>
 #include <string>
 #include <sstream>
 
-// create stubs
-namespace {
-int g_exit_code = 0;
-struct ExitStubError : public std::runtime_error {
-  using std::runtime_error::runtime_error;
-};
-#define exit_stub(code) exit_stub_impl(code, __FILE__, __func__, __LINE__)
-void exit_stub_impl(int exit_code, std::string file, std::string func,
-                    int line)
-{
-  g_exit_code = exit_code;
-  std::ostringstream what;
-  what
-    << "ExitStubError: exit() function called\n"
-    << "  File:     " << file << std::endl
-    << "  Function: " << func << std::endl
-    << "  Line:     " << line << std::endl
-    << "  Code:     " << exit_code << std::endl;
-  throw ExitStubError(what.str());
-}
-} // end of unnamed namespace
-
-#define main main_old
-#define exit exit_stub
-#include "lulesh.cc"
-#undef exit
-#undef main
-
-#include <flit.h>
-
-#include <string>
+#include <unistd.h>
 
 namespace {
 // RAII wrapper around tmpfile()
@@ -153,7 +127,7 @@ flit::Variant LuleshTest<double>::run_impl(const std::vector<double> &ti) {
     try {
       FdReplace replacer(stdout, temporary_file.file);
       FLIT_UNUSED(replacer);
-      main_old(argc, argv);
+      lulesh_main(argc, argv);
     } catch (ExitStubError &ex) {
       flit::info_stream << id << ": LULESH errored out\n";
       std::cout << "LULESH errored out, returning rediculous values\n";
