@@ -19,6 +19,7 @@ export PATH=/tmp/bentley8/bin:$PATH
 # Profile all of the LULESH code.  This was put into the 'dev' target
 # see flit-config.toml to see how
 cd LULESH/flit-tests
+flit update
 make dev -j10
 
 # Create the database of corruptions to use in the experiment
