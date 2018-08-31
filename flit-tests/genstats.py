@@ -8,7 +8,39 @@ import argparse
 import collections
 import csv
 import os
+import subprocess as subp
 import sys
+import tempfile
+
+#symbols_not_in_search = [
+#    '_ZL14CalcElemVolumedddddddddddddddddddddddd',
+#    '_ZL28CalcElemCharacteristicLengthPKdS0_S0_d',
+#    '_ZL32CalcElemShapeFunctionDerivativesPKdS0_S0_PA8_dPd',
+#    '_ZL24CalcElemVelocityGradientPKdS0_S0_PA8_S_dPd',
+#    '_ZL13TimeIncrementR6Domain',
+#    '_ZL8AreaFacedddddddddddd',
+#    '_ZL24CalcAccelerationForNodesR6Domaini',
+#    '_ZL20CalcVelocityForNodesR6Domainddi',
+#    '_ZL20CalcPositionForNodesR6Domaindi',
+#    '_ZL23InitStressTermsForElemsR6DomainPdS1_S1_i',
+#    '_ZL23IntegrateStressForElemsR6DomainPdS1_S1_S1_ii',
+#    '_ZL28CalcHourglassControlForElemsR6DomainPdd',
+#    '_ZL27SumElemStressesToNodeForcesPA8_KddddPdS2_S2_',
+#    '_ZL17SumElemFaceNormalPdS_S_S_S_S_S_S_S_S_S_S_dddddddddddd',
+#    '_ZL28CalcFBHourglassForceForElemsR6DomainPdS1_S1_S1_S1_S1_S1_dii',
+#    '_ZL7VoluDerddddddddddddddddddPdS_S_',
+#    '_ZL24CalcElemFBHourglassForcePdS_S_PA4_ddS_S_S_',
+#    '_ZL20CalcLagrangeElementsR6DomainPd',
+#    '_ZL21UpdateVolumesForElemsR6DomainPddi',
+#    '_ZL31CalcMonotonicQGradientsForElemsR6DomainPd',
+#    '_ZL28CalcMonotonicQRegionForElemsR6DomainiPdd',
+#    '_ZL15EvalEOSForElemsR6DomainPdiPii',
+#    '_ZL18CalcEnergyForElemsPdS_S_S_S_S_S_S_S_S_S_S_S_dddddS_S_ddiPi',
+#    '_ZL22CalcSoundSpeedForElemsR6DomainPddS1_S1_S1_S1_diPi',
+#    '_ZL20CalcPressureForElemsPdS_S_S_S_S_dddiPi',
+#    '_ZL29CalcCourantConstraintForElemsR6DomainiPidRd',
+#    '_ZL27CalcHydroConstraintForElemsR6DomainiPidRd',
+#    ]
 
 SymbolTuple = collections.namedtuple(
     'SymbolTuple', 'src symbol demangled fname lineno')
@@ -78,6 +110,9 @@ class TestRun:
         assert len(switch_split) == 5
         self.corrupt_file = switch_split[0]
         self.corrupt_symbol = switch_split[1]
+        #self.corrupt_demangled = subp.check_output(
+        #    'echo ' + self.corrupt_symbol + ' | c++filt', shell=True)
+        #self.corrupt_demangled = self.corrupt_demangled.decode('utf-8').strip()
         self.corrupt_instruction = int(switch_split[2])
         self.corrupt_val = float(switch_split[3])
         self.corrupt_op = switch_split[4]
@@ -109,6 +144,21 @@ def parse_args(arguments):
                             ''')
     return parser.parse_args(arguments)
 
+def demangle(names):
+    '''
+    Returns a copy of names that has been demangled
+
+    >>> demangle(['_ZN6DomainC1Eiiiiiiiii', '_ZN6DomainC2Eiiiiiiiii'])
+    ['Domain::Domain(int, int, int, int, int, int, int, int, int)', 'Domain::Domain(int, int, int, int, int, int, int, int, int)']
+    '''
+    names_copy = [x + '\n' for x in names]
+    with tempfile.TemporaryFile(mode='w') as fout:
+        fout.writelines(names_copy)
+        fout.flush()
+        fout.seek(0)
+        output = subp.check_output(['c++filt'], stdin=fout)
+    return output.decode().splitlines()
+
 def main(arguments):
     'Main logic here'
     args = parse_args(arguments)
@@ -121,12 +171,22 @@ def main(arguments):
         rows_by_testid[row['testid']].append(row)
     test_runs = sorted([TestRun(v) for k, v in rows_by_testid.items()],
                        key=lambda x: x.testid)
+    mangled_symbols = [x.corrupt_symbol for x in test_runs]
+    demangled_symbols = demangle(mangled_symbols)
+    for tr, ds in zip(test_runs, demangled_symbols):
+        tr.corrupt_demangled = ds
 
     exact_finds = 0                # 1. found exact same function
     indirect_finds = 0             # 2. found function that calls injected one
     failure_finds = 0              # 3. found the wrong thing
     failure_nofinds = 0            # 4. did not find function
     not_measurable = 0             # 5. injection not measurable
+
+    #indirect_in_search = 0
+    #indirect_not_in_search = 0
+    #indirect_in_search_runs = []
+    
+    error_cases = 0               # count of times std::exit(-1) was called from lulesh.cc
 
     file_histogram = collections.Counter()            # file finds -> count
     symbol_histogram = collections.Counter()          # symbol finds -> count
@@ -141,13 +201,18 @@ def main(arguments):
         if (len(test_run.found_files) == 1
             and len(test_run.found_symbols) == 1
             and test_run.corrupt_file == test_run.found_files[0]
-            and test_run.corrupt_symbol == test_run.found_symbols[0].symbol):
+            and test_run.corrupt_demangled == test_run.found_symbols[0].demangled):
             exact_finds += 1
         elif len(test_run.found_files) > 0 and len(test_run.found_symbols) > 0:
-            found_symbol_names = [x.symbol for x in test_run.found_symbols]
-            assert test_run.corrupt_symbol not in found_symbol_names
+            found_demangled_names = [x.demangled for x in test_run.found_symbols]
+            assert test_run.corrupt_demangled not in found_demangled_names
             indirect_finds += 1
-            indirect_finds_histogram[len(found_symbol_names)] += 1
+            indirect_finds_histogram[len(found_demangled_names)] += 1
+            #if test_run.corrupt_symbol in symbols_not_in_search:
+            #    indirect_not_in_search += 1
+            #else:
+            #    indirect_in_search += 1
+            #    indirect_in_search_runs.append(test_run)
         # I don't have a way of measuring failure_finds since the bisect run
         # would fail early if this ever happened.  That is because the bisect
         # algorithm has a built-in assertion at the end checking that the
@@ -160,6 +225,8 @@ def main(arguments):
             assert len(test_run.found_files) == 0
             assert len(test_run.found_symbols) == 0
             not_measurable += 1
+        if 1500000.0 in test_run.symbol_score_map.values():
+            error_cases += 1
 
     # Print out the statistical report
     # TODO: calculate percentages with confidence intervals (i.e. error bars)
@@ -172,13 +239,23 @@ def main(arguments):
     print('    5. n/a:     not measurable:  ', not_measurable)
     print('  File histogram:')
     for key, value in sorted(file_histogram.items()):
-        print('    {} found: {}'.format(key, value))
+        print('    {} found:                      {}'.format(key, value))
     print('  Symbol histogram:')
     for key, value in sorted(symbol_histogram.items()):
-        print('    {} found: {}'.format(key, value))
+        print('    {} found:                      {}'.format(key, value))
     print('  Symbol histogram when not an exact find:')
     for key, value in sorted(indirect_finds_histogram.items()):
-        print('    {} found: {}'.format(key, value))
+        print('    {} found:                      {}'.format(key, value))
+    print('  Error cases located:           ', error_cases)
+    print('  Error cases not located:       ', failure_nofinds)
+    #print('  Symbols found indirectly:')
+    #print('    Not in search space:         ', indirect_not_in_search)
+    #print('    In search space:             ', indirect_in_search)
+    #if len(indirect_in_search_runs) > 0:
+    #    print('  Indirect finds that were in the search space:')
+    #    for test_run in indirect_in_search_runs:
+    #        print('    {x.corrupt_file}:{x.corrupt_symbol} -> '
+    #              '{x.found_files}:{x.found_symbols}'.format(x=test_run))
 
 if __name__ == '__main__':
     main(sys.argv[1:])
