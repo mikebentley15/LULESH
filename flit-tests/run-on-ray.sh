@@ -3,6 +3,9 @@
 set -e
 set -x
 
+# delete old stuff of mine
+rm -rf /tmp/bentley8
+
 # clone FLiT and LULESH into /tmp/bentley8
 mkdir /tmp/bentley8
 cd /tmp/bentley8
