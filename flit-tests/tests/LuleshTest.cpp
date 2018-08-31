@@ -118,7 +118,7 @@ template <>
 flit::Variant LuleshTest<double>::run_impl(const std::vector<double> &ti) {
     FLIT_UNUSED(ti);
     const int argc = 3;
-    char arg1[] = "laghos2.0";
+    char arg1[] = "lulesh2.0";
     char arg2[] = "-i";
     char arg3[] = "10";
     char* argv[] = {arg1, arg2, arg3};
