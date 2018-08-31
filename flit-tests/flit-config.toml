@@ -11,7 +11,7 @@ name = 'ray'
 [hosts.dev_build]
 compiler_name = 'corrupt_clang'
 optimization_level = '-O2'
-switches = '-funsafe-math-optimizations'
+switches = '--capture-choices'
 
 [hosts.ground_truth]
 compiler_name = 'corrupt_clang'
