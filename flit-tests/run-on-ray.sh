@@ -8,7 +8,7 @@ git clone --branch flit-tests https://github.com/mikebentley15/LULESH.git
 
 # Compile FLiT and put the python script in the front of the PATH
 make --directory FLiT \
-  CXX=../LULESH/flit-tests/corrupt-clang.sh -j10
+  CXX=../LULESH/flit-tests/corrupt_clang.py -j10
 mkdir bin
 ln -s ../FLiT/scripts/flitcli/flit.py bin/flit
 export PATH=/tmp/bentley8/bin:$PATH
