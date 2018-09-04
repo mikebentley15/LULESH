@@ -44,10 +44,8 @@ make dev -j10
 PROCESSOR_COUNT=$(grep processor /proc/cpuinfo | wc -l)
 
 # Run the experiment
-# Note the --delete flag, it deletes non-needed files as it goes
 flit bisect \
   --auto-sqlite-run corruptions.sqlite \
-  --delete \
   --parallel $PROCESSOR_COUNT \
   --jobs 5
 

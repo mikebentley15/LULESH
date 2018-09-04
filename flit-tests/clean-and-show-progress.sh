@@ -6,6 +6,13 @@ BISECT_COPY=/tmp/auto-bisect-numbers.txt
 TO_DELETE_NUMS=/tmp/nums-to-delete.txt
 TO_DELETE_FILE=/tmp/executables-to-delete.txt
 
+find /tmp/bentley8/LULESH/flit-tests/bisect-precompile \
+  -type f \
+  -executable \
+  -cmin +5 \
+  -delete
+
+pushd /tmp/bentley8/LULESH/flit-tests
 tail -n +2 $BISECT_FILE | awk -F, '{ print $2 }' | sort -u > $WORKING_COPY
 touch $BISECT_COPY
 comm -23 $WORKING_COPY $BISECT_COPY > $TO_DELETE_NUMS
@@ -38,4 +45,4 @@ echo $(grep SymbolTuple $BISECT_FILE | wc -l) \
      runs were detectable and found a symbol
 echo
 echo $(echo '100.0*'$(grep lib,src,sym auto-bisect.csv | wc -l)'/4376.0' | bc)% done
-
+popd
